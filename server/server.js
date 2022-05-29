@@ -12,8 +12,7 @@ const PORT = process.env.PORT || 3001;
 const server = new ApolloServer({
   typeDefs,
   resolvers,
-  // context: authMiddleware,
-  introspection: process.env.NODE_ENV !== 'production'
+  context: authMiddleware
 });
 
 
@@ -43,5 +42,5 @@ const startApolloServer = async (typeDefs, resolvers) => {
 
 
 
-// Call the async function to start the server
+
 startApolloServer(typeDefs, resolvers);
