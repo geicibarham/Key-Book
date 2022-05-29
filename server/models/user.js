@@ -1,48 +1,57 @@
-// import the gql tagged template function
-const { gql } = require('apollo-server-express');
+const { Schema, model } = require('mongoose');
+const bcrypt = require('bcrypt');
 
-// create typeDefs
-const typeDefs = gql`
-  type User {
-    _id: ID
-    username: String
-    email: String
-    bookCount: Int
-    savedBooks: [Book]
+// import schema from Book.js
+const bookSchema = require('./Book');
+
+const userSchema = new Schema(
+  {
+    username: {
+      type: String,
+      required: true,
+      unique: true,
+    },
+    email: {
+      type: String,
+      required: true,
+      unique: true,
+      match: [/.+@.+\..+/, 'Must use a valid email address'],
+    },
+    password: {
+      type: String,
+      required: true,
+    },
+    // set savedBooks to be an array of data that adheres to the bookSchema
+    savedBooks: [bookSchema],
+  },
+  // set this to use virtual below
+  {
+    toJSON: {
+      virtuals: true,
+    },
+  }
+);
+
+// hash user password
+userSchema.pre('save', async function (next) {
+  if (this.isNew || this.isModified('password')) {
+    const saltRounds = 10;
+    this.password = await bcrypt.hash(this.password, saltRounds);
   }
 
-  type Book {
-    authors: [String]
-    description: String
-    bookId: String
-    image: String
-    link: String
-    title: String
-  }
+  next();
+});
 
-  type Auth {
-    token: ID!
-    user: User
-  }
+// custom method to compare and validate password for logging in
+userSchema.methods.isCorrectPassword = async function (password) {
+  return bcrypt.compare(password, this.password);
+};
 
-  type Query {
-    me: User
-  }
+// when we query a user, we'll also get another field called `bookCount` with the number of saved books we have
+userSchema.virtual('bookCount').get(function () {
+  return this.savedBooks.length;
+});
 
-  type Mutation {
-    login(email: String!, password: String!): Auth
-    addUser(username: String!, email: String!, password: String!): Auth
-    saveBook(
-      authors: [String]
-      description: String!
-      title: String!
-      bookId: String!
-      link: String
-      image: String
-    ): User
-    removeBook(bookId: String!): User
-  }
-`;
+const User = model('User', userSchema);
 
-// export typeDefs
-module.exports = typeDefs;
+module.exports = User;
